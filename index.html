@@ -13,32 +13,29 @@
     <style>
         body { margin: 0; overflow: hidden; text-align: center; background-color: black; }
         canvas, video { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; display: block; }
-        #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; }
+        #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; background: rgba(0, 0, 0, 0.5); padding: 5px; border-radius: 5px; }
         .corner-markings {
             position: absolute;
-            width: 10vw;
-            height: 10vw;
+            width: 50px;
+            height: 50px;
             border: 3px solid red;
+            box-sizing: border-box;
         }
-        .top-left { border-right: none; border-bottom: none; }
-        .top-right { border-left: none; border-bottom: none; }
-        .bottom-left { border-right: none; border-top: none; }
-        .bottom-right { border-left: none; border-top: none; }
     </style>
 </head>
 <body>
     <div id="slider-container">
-        <label for="aqiSlider">AQI Level:</label>
+        <label for="aqiSlider" id="aqiLabel">AQI Level:</label>
         <input type="range" id="aqiSlider" min="0" max="500" value="100" disabled>
         <span id="aqiValue">100</span>
     </div>
     <video id="video" autoplay playsinline></video>
-    <div class="corner-markings top-left" id="topLeft"></div>
-    <div class="corner-markings top-right" id="topRight"></div>
-    <div class="corner-markings bottom-left" id="bottomLeft"></div>
-    <div class="corner-markings bottom-right" id="bottomRight"></div>
+    <div id="topLeft" class="corner-markings"></div>
+    <div id="topRight" class="corner-markings"></div>
+    <div id="bottomLeft" class="corner-markings"></div>
+    <div id="bottomRight" class="corner-markings"></div>
     <script>
-        let scene, camera, renderer, videoTexture, faceMeshModel, particles = [];
+        let scene, camera, renderer, videoTexture, faceMeshModel;
 
         async function fetchAQI() {
             if (navigator.geolocation) {
@@ -51,94 +48,58 @@
                         let aqi = data.data.aqi;
                         document.getElementById('aqiSlider').value = aqi;
                         document.getElementById('aqiValue').innerText = aqi;
-                        updateParticles();
+                        updateAQIColor(aqi);
+                        updateParticles(aqi);
+                        updateMicrobes(aqi);
                     }
                 });
             }
         }
 
-        async function initFaceMesh() {
-            faceMeshModel = await facemesh.load();
-            detectFace();
+        function updateAQIColor(aqi) {
+            let color;
+            if (aqi <= 50) color = 'green';
+            else if (aqi <= 100) color = 'yellow';
+            else if (aqi <= 150) color = 'orange';
+            else if (aqi <= 200) color = 'red';
+            else if (aqi <= 300) color = 'purple';
+            else color = 'maroon';
+            document.getElementById('aqiLabel').style.color = color;
         }
 
-        async function detectFace() {
-            const video = document.getElementById('video');
-            const predictions = await faceMeshModel.estimateFaces({ input: video });
-            if (predictions.length > 0) {
-                const keypoints = predictions[0].scaledMesh;
-                const xMin = Math.min(...keypoints.map(p => p[0]));
-                const yMin = Math.min(...keypoints.map(p => p[1]));
-                const xMax = Math.max(...keypoints.map(p => p[0]));
-                const yMax = Math.max(...keypoints.map(p => p[1]));
-                updateCorners(xMin, yMin, xMax, yMax);
+        function updateParticles(aqi) {
+            if (!scene) return;
+            scene.children = scene.children.filter(obj => obj.type !== 'Points');
+            let particleCount = aqi * 3; 
+            let geometry = new THREE.BufferGeometry();
+            let positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 15;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
             }
-            requestAnimationFrame(detectFace);
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            let material = new THREE.PointsMaterial({ color: 0xAA8866, size: 0.1, opacity: 0.6, transparent: true });
+            let particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
         }
 
-        function updateCorners(xMin, yMin, xMax, yMax) {
-            const scaleX = window.innerWidth / video.videoWidth;
-            const scaleY = window.innerHeight / video.videoHeight;
-            
-            document.getElementById('topLeft').style.transform = translate(${xMin * scaleX}px, ${yMin * scaleY}px);
-            document.getElementById('topRight').style.transform = translate(${xMax * scaleX - 10}px, ${yMin * scaleY}px);
-            document.getElementById('bottomLeft').style.transform = translate(${xMin * scaleX}px, ${yMax * scaleY - 10}px);
-            document.getElementById('bottomRight').style.transform = translate(${xMax * scaleX - 10}px, ${yMax * scaleY - 10}px);
-        }
-
-        function initScene() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 1;
-            renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-            
-            createParticles();
-            animate();
-        }
-
-        function createParticles() {
-            const particleMaterial = new THREE.MeshBasicMaterial({ color: 0x8B5A2B, transparent: true, opacity: 0.4 });
-            for (let i = 0; i < 500; i++) {
-                let size = Math.random() * 0.03;
-                let particle = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), particleMaterial);
-                particle.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, Math.random() * -2);
-                scene.add(particle);
-                particles.push(particle);
+        function updateMicrobes(aqi) {
+            let microbeCount = Math.floor(aqi / 10);
+            for (let i = 0; i < microbeCount; i++) {
+                let microbeGeometry = new THREE.SphereGeometry(0.2, 6, 6);
+                let microbeMaterial = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
+                let microbe = new THREE.Mesh(microbeGeometry, microbeMaterial);
+                microbe.position.set((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+                scene.add(microbe);
             }
-            fetchAQI();
-        }
-
-        function updateParticles() {
-            let aqi = document.getElementById('aqiSlider').value;
-            let density = Math.min(500, (aqi / 500) * 500);
-            particles.forEach((particle, index) => {
-                particle.visible = index < density;
-            });
-        }
-
-        function animateParticles() {
-            particles.forEach(particle => {
-                particle.position.y -= 0.002;
-                if (particle.position.y < -1.5) {
-                    particle.position.y = 1.5;
-                }
-            });
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            animateParticles();
-            renderer.render(scene, camera);
         }
 
         navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
             document.getElementById('video').srcObject = stream;
         });
 
-        initScene();
-        initFaceMesh();
+        fetchAQI();
     </script>
 </body>
 </html>
