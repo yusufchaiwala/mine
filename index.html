@@ -37,69 +37,33 @@
     <script>
         let scene, camera, renderer, videoTexture, faceMeshModel;
 
-        async function fetchAQI() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(async position => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const response = await fetch(`https://api.waqi.info/feed/geo:${lat};${lon}/?token=YOUR_API_TOKEN`);
-                    const data = await response.json();
-                    if (data.status === "ok") {
-                        let aqi = data.data.aqi;
-                        document.getElementById('aqiSlider').value = aqi;
-                        document.getElementById('aqiValue').innerText = aqi;
-                        updateAQIColor(aqi);
-                        updateParticles(aqi);
-                        updateMicrobes(aqi);
-                    }
-                });
-            }
-        }
-
-        function updateAQIColor(aqi) {
-            let color;
-            if (aqi <= 50) color = 'green';
-            else if (aqi <= 100) color = 'yellow';
-            else if (aqi <= 150) color = 'orange';
-            else if (aqi <= 200) color = 'red';
-            else if (aqi <= 300) color = 'purple';
-            else color = 'maroon';
-            document.getElementById('aqiLabel').style.color = color;
-        }
-
         function updateParticles(aqi) {
             if (!scene) return;
             scene.children = scene.children.filter(obj => obj.type !== 'Points');
-            let particleCount = aqi * 3; 
+            let particleCount = aqi * 5; 
             let geometry = new THREE.BufferGeometry();
             let positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 15;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+                positions[i * 3] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
             }
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            let material = new THREE.PointsMaterial({ color: 0xAA8866, size: 0.1, opacity: 0.6, transparent: true });
+            let material = new THREE.PointsMaterial({ color: 0xAA8866, size: 0.3, opacity: 0.8, transparent: true });
             let particleSystem = new THREE.Points(geometry, material);
             scene.add(particleSystem);
         }
 
         function updateMicrobes(aqi) {
-            let microbeCount = Math.floor(aqi / 10);
+            let microbeCount = Math.floor(aqi / 5);
             for (let i = 0; i < microbeCount; i++) {
-                let microbeGeometry = new THREE.SphereGeometry(0.2, 6, 6);
+                let microbeGeometry = new THREE.SphereGeometry(0.4, 8, 8);
                 let microbeMaterial = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
                 let microbe = new THREE.Mesh(microbeGeometry, microbeMaterial);
-                microbe.position.set((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+                microbe.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
                 scene.add(microbe);
             }
         }
-
-        navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-            document.getElementById('video').srcObject = stream;
-        });
-
-        fetchAQI();
     </script>
 </body>
 </html>
