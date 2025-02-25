@@ -16,15 +16,11 @@
         #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; background: rgba(0, 0, 0, 0.5); padding: 5px; border-radius: 5px; }
         .corner-markings {
             position: absolute;
-            width: 10vw;
-            height: 10vw;
+            width: 50px;
+            height: 50px;
             border: 3px solid red;
             box-sizing: border-box;
         }
-        .top-left { top: 0; left: 0; }
-        .top-right { top: 0; right: 0; }
-        .bottom-left { bottom: 0; left: 0; }
-        .bottom-right { bottom: 0; right: 0; }
     </style>
 </head>
 <body>
@@ -34,10 +30,10 @@
         <span id="aqiValue">100</span>
     </div>
     <video id="video" autoplay playsinline></video>
-    <div class="corner-markings top-left" id="topLeft"></div>
-    <div class="corner-markings top-right" id="topRight"></div>
-    <div class="corner-markings bottom-left" id="bottomLeft"></div>
-    <div class="corner-markings bottom-right" id="bottomRight"></div>
+    <div id="topLeft" class="corner-markings"></div>
+    <div id="topRight" class="corner-markings"></div>
+    <div id="bottomLeft" class="corner-markings"></div>
+    <div id="bottomRight" class="corner-markings"></div>
     <script>
         let scene, camera, renderer, videoTexture, faceMeshModel, particles = [];
 
@@ -91,10 +87,31 @@
             const xMax = Math.max(...keypoints.map(p => p[0]));
             const yMax = Math.max(...keypoints.map(p => p[1]));
             
-            document.getElementById('topLeft').style.transform = translate(${xMin}px, ${yMin}px);
-            document.getElementById('topRight').style.transform = translate(${xMax - 10}px, ${yMin}px);
-            document.getElementById('bottomLeft').style.transform = translate(${xMin}px, ${yMax - 10}px);
-            document.getElementById('bottomRight').style.transform = translate(${xMax - 10}px, ${yMax - 10}px);
+            document.getElementById('topLeft').style.left = ${xMin}px;
+            document.getElementById('topLeft').style.top = ${yMin}px;
+            document.getElementById('topRight').style.left = ${xMax}px;
+            document.getElementById('topRight').style.top = ${yMin}px;
+            document.getElementById('bottomLeft').style.left = ${xMin}px;
+            document.getElementById('bottomLeft').style.top = ${yMax}px;
+            document.getElementById('bottomRight').style.left = ${xMax}px;
+            document.getElementById('bottomRight').style.top = ${yMax}px;
+        }
+
+        function updateParticles(aqi) {
+            if (!scene) return;
+            scene.children = scene.children.filter(obj => obj.type !== 'Points');
+            let particleCount = aqi * 2;
+            let geometry = new THREE.BufferGeometry();
+            let positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            let material = new THREE.PointsMaterial({ color: 0xAAAAAA, size: 0.05 });
+            let particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
         }
 
         navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
