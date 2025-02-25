@@ -13,17 +13,18 @@
     <style>
         body { margin: 0; overflow: hidden; text-align: center; background-color: black; }
         canvas, video { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; display: block; }
-        #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; }
+        #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; background: rgba(0, 0, 0, 0.5); padding: 5px; border-radius: 5px; }
         .corner-markings {
             position: absolute;
             width: 10vw;
             height: 10vw;
             border: 3px solid red;
+            box-sizing: border-box;
         }
-        .top-left { border-right: none; border-bottom: none; }
-        .top-right { border-left: none; border-bottom: none; }
-        .bottom-left { border-right: none; border-top: none; }
-        .bottom-right { border-left: none; border-top: none; }
+        .top-left { top: 0; left: 0; }
+        .top-right { top: 0; right: 0; }
+        .bottom-left { bottom: 0; left: 0; }
+        .bottom-right { bottom: 0; right: 0; }
     </style>
 </head>
 <body>
@@ -51,7 +52,7 @@
                         let aqi = data.data.aqi;
                         document.getElementById('aqiSlider').value = aqi;
                         document.getElementById('aqiValue').innerText = aqi;
-                        updateParticles();
+                        updateParticles(aqi);
                     }
                 });
             }
@@ -67,23 +68,21 @@
             const predictions = await faceMeshModel.estimateFaces({ input: video });
             if (predictions.length > 0) {
                 const keypoints = predictions[0].scaledMesh;
-                const xMin = Math.min(...keypoints.map(p => p[0]));
-                const yMin = Math.min(...keypoints.map(p => p[1]));
-                const xMax = Math.max(...keypoints.map(p => p[0]));
-                const yMax = Math.max(...keypoints.map(p => p[1]));
-                updateCorners(xMin, yMin, xMax, yMax);
+                updateCorners(keypoints);
             }
             requestAnimationFrame(detectFace);
         }
 
-        function updateCorners(xMin, yMin, xMax, yMax) {
-            const scaleX = window.innerWidth / video.videoWidth;
-            const scaleY = window.innerHeight / video.videoHeight;
+        function updateCorners(keypoints) {
+            const xMin = Math.min(...keypoints.map(p => p[0]));
+            const yMin = Math.min(...keypoints.map(p => p[1]));
+            const xMax = Math.max(...keypoints.map(p => p[0]));
+            const yMax = Math.max(...keypoints.map(p => p[1]));
             
-            document.getElementById('topLeft').style.transform = `translate(${xMin * scaleX}px, ${yMin * scaleY}px)`;
-            document.getElementById('topRight').style.transform = `translate(${xMax * scaleX - 10}px, ${yMin * scaleY}px)`;
-            document.getElementById('bottomLeft').style.transform = `translate(${xMin * scaleX}px, ${yMax * scaleY - 10}px)`;
-            document.getElementById('bottomRight').style.transform = `translate(${xMax * scaleX - 10}px, ${yMax * scaleY - 10}px)`;
+            document.getElementById('topLeft').style.transform = `translate(${xMin}px, ${yMin}px)`;
+            document.getElementById('topRight').style.transform = `translate(${xMax - 10}px, ${yMin}px)`;
+            document.getElementById('bottomLeft').style.transform = `translate(${xMin}px, ${yMax - 10}px)`;
+            document.getElementById('bottomRight').style.transform = `translate(${xMax - 10}px, ${yMax - 10}px)`;
         }
 
         function initScene() {
@@ -93,7 +92,6 @@
             renderer = new THREE.WebGLRenderer({ alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
-            
             createParticles();
             animate();
         }
@@ -110,8 +108,7 @@
             fetchAQI();
         }
 
-        function updateParticles() {
-            let aqi = document.getElementById('aqiSlider').value;
+        function updateParticles(aqi) {
             let density = Math.min(500, (aqi / 500) * 500);
             particles.forEach((particle, index) => {
                 particle.visible = index < density;
