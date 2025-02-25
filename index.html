@@ -35,7 +35,7 @@
     <div id="bottomLeft" class="corner-markings"></div>
     <div id="bottomRight" class="corner-markings"></div>
     <script>
-        let scene, camera, renderer, videoTexture, faceMeshModel, particles = [];
+        let scene, camera, renderer, videoTexture, faceMeshModel;
 
         async function fetchAQI() {
             if (navigator.geolocation) {
@@ -66,50 +66,19 @@
             document.getElementById('aqiLabel').style.color = color;
         }
 
-        async function initFaceMesh() {
-            faceMeshModel = await facemesh.load();
-            detectFace();
-        }
-
-        async function detectFace() {
-            const video = document.getElementById('video');
-            const predictions = await faceMeshModel.estimateFaces({ input: video });
-            if (predictions.length > 0) {
-                const keypoints = predictions[0].scaledMesh;
-                updateCorners(keypoints);
-            }
-            requestAnimationFrame(detectFace);
-        }
-
-        function updateCorners(keypoints) {
-            const xMin = Math.min(...keypoints.map(p => p[0]));
-            const yMin = Math.min(...keypoints.map(p => p[1]));
-            const xMax = Math.max(...keypoints.map(p => p[0]));
-            const yMax = Math.max(...keypoints.map(p => p[1]));
-            
-            document.getElementById('topLeft').style.left = `${xMin}px`;
-            document.getElementById('topLeft').style.top = `${yMin}px`;
-            document.getElementById('topRight').style.left = `${xMax}px`;
-            document.getElementById('topRight').style.top = `${yMin}px`;
-            document.getElementById('bottomLeft').style.left = `${xMin}px`;
-            document.getElementById('bottomLeft').style.top = `${yMax}px`;
-            document.getElementById('bottomRight').style.left = `${xMax}px`;
-            document.getElementById('bottomRight').style.top = `${yMax}px`;
-        }
-
         function updateParticles(aqi) {
             if (!scene) return;
             scene.children = scene.children.filter(obj => obj.type !== 'Points');
-            let particleCount = aqi * 2;
+            let particleCount = aqi * 3; // Increased particle count for more visibility
             let geometry = new THREE.BufferGeometry();
             let positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 10;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+                positions[i * 3] = (Math.random() - 0.5) * 15;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
             }
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            let material = new THREE.PointsMaterial({ color: 0xAAAAAA, size: 0.05 });
+            let material = new THREE.PointsMaterial({ color: 0xAA8866, size: 0.07, opacity: 0.6, transparent: true });
             let particleSystem = new THREE.Points(geometry, material);
             scene.add(particleSystem);
         }
@@ -119,7 +88,6 @@
         });
 
         fetchAQI();
-        initFaceMesh();
     </script>
 </body>
 </html>
