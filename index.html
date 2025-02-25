@@ -16,11 +16,15 @@
         #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; background: rgba(0, 0, 0, 0.5); padding: 5px; border-radius: 5px; }
         .corner-markings {
             position: absolute;
-            width: 50px;
-            height: 50px;
+            width: 10vw;
+            height: 10vw;
             border: 3px solid red;
             box-sizing: border-box;
         }
+        .top-left { top: 0; left: 0; }
+        .top-right { top: 0; right: 0; }
+        .bottom-left { bottom: 0; left: 0; }
+        .bottom-right { bottom: 0; right: 0; }
     </style>
 </head>
 <body>
@@ -30,12 +34,12 @@
         <span id="aqiValue">100</span>
     </div>
     <video id="video" autoplay playsinline></video>
-    <div id="topLeft" class="corner-markings"></div>
-    <div id="topRight" class="corner-markings"></div>
-    <div id="bottomLeft" class="corner-markings"></div>
-    <div id="bottomRight" class="corner-markings"></div>
+    <div class="corner-markings top-left" id="topLeft"></div>
+    <div class="corner-markings top-right" id="topRight"></div>
+    <div class="corner-markings bottom-left" id="bottomLeft"></div>
+    <div class="corner-markings bottom-right" id="bottomRight"></div>
     <script>
-        let scene, camera, renderer, videoTexture, faceMeshModel;
+        let scene, camera, renderer, videoTexture, faceMeshModel, particles = [];
 
         async function fetchAQI() {
             if (navigator.geolocation) {
@@ -66,21 +70,31 @@
             document.getElementById('aqiLabel').style.color = color;
         }
 
-        function updateParticles(aqi) {
-            if (!scene) return;
-            scene.children = scene.children.filter(obj => obj.type !== 'Points');
-            let particleCount = aqi * 3; // Increased particle count for more visibility
-            let geometry = new THREE.BufferGeometry();
-            let positions = new Float32Array(particleCount * 3);
-            for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 15;
-                positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+        async function initFaceMesh() {
+            faceMeshModel = await facemesh.load();
+            detectFace();
+        }
+
+        async function detectFace() {
+            const video = document.getElementById('video');
+            const predictions = await faceMeshModel.estimateFaces({ input: video });
+            if (predictions.length > 0) {
+                const keypoints = predictions[0].scaledMesh;
+                updateCorners(keypoints);
             }
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            let material = new THREE.PointsMaterial({ color: 0xAA8866, size: 0.07, opacity: 0.6, transparent: true });
-            let particleSystem = new THREE.Points(geometry, material);
-            scene.add(particleSystem);
+            requestAnimationFrame(detectFace);
+        }
+
+        function updateCorners(keypoints) {
+            const xMin = Math.min(...keypoints.map(p => p[0]));
+            const yMin = Math.min(...keypoints.map(p => p[1]));
+            const xMax = Math.max(...keypoints.map(p => p[0]));
+            const yMax = Math.max(...keypoints.map(p => p[1]));
+            
+            document.getElementById('topLeft').style.transform = translate(${xMin}px, ${yMin}px);
+            document.getElementById('topRight').style.transform = translate(${xMax - 10}px, ${yMin}px);
+            document.getElementById('bottomLeft').style.transform = translate(${xMin}px, ${yMax - 10}px);
+            document.getElementById('bottomRight').style.transform = translate(${xMax - 10}px, ${yMax - 10}px);
         }
 
         navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
@@ -88,6 +102,7 @@
         });
 
         fetchAQI();
+        initFaceMesh();
     </script>
 </body>
 </html>
