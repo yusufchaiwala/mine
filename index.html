@@ -49,7 +49,8 @@
         <label for="aqiSlider">AQI Level:</label>
         <input type="range" id="aqiSlider" min="0" max="500" value="100" disabled>
         <span id="aqiValue">Loading...</span>
-    </div><script>
+    </div>
+    <script>
     function updateMicrobes(aqi) {
         let microbeCount = Math.floor(aqi * 1.5); // Increased microbes
         let microbeGroup = new THREE.Group();
@@ -86,50 +87,8 @@
         }
         animateMicrobes();
     }
-    const AQI_API_KEY = "32588a0ff6002531fb2ccb32f7223fabde458d9e";
-
-    async function fetchAQI(lat, lon) {
-        const url = `https://api.waqi.info/feed/geo:${lat};${lon}/?token=${AQI_API_KEY}`;
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            console.log("AQI API Response:", data); // Debugging Log
-
-            if (data.status === "ok") {
-                const aqiValue = data.data.aqi;
-                document.getElementById("aqiValue").textContent = aqiValue;
-                document.getElementById("aqiSlider").value = aqiValue;
-            } else {
-                console.error("AQI fetch failed:", data);
-                document.getElementById("aqiValue").textContent = "Error";
-            }
-        } catch (error) {
-            console.error("AQI API error:", error);
-            document.getElementById("aqiValue").textContent = "Error";
-        }
-    }
-
-    function getLocationAndFetchAQI() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    console.log("User Location:", position.coords.latitude, position.coords.longitude);
-                    fetchAQI(position.coords.latitude, position.coords.longitude);
-                    setInterval(() => fetchAQI(position.coords.latitude, position.coords.longitude), 300000);
-                },
-                (error) => {
-                    console.error("Geolocation error:", error);
-                    document.getElementById("aqiValue").textContent = "Location Error";
-                }
-            );
-        } else {
-            console.error("Geolocation not supported");
-            document.getElementById("aqiValue").textContent = "Not Supported";
-        }
-    }
-
-    getLocationAndFetchAQI(); // Start AQI Fetching
 </script>
+
 
 </body>
 </html>
