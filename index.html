@@ -50,6 +50,42 @@
         <input type="range" id="aqiSlider" min="0" max="500" value="100" disabled>
         <span id="aqiValue">Loading...</span>
     </div><script>
+    function updateMicrobes(aqi) {
+        let microbeCount = Math.floor(aqi * 1.5); // Increased microbes
+        let microbeGroup = new THREE.Group();
+
+        for (let i = 0; i < microbeCount; i++) {
+            let microbeGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+            let microbeMaterial = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
+            let microbe = new THREE.Mesh(microbeGeometry, microbeMaterial);
+
+            microbe.position.set(
+                (Math.random() - 0.5) * 15,
+                (Math.random() - 0.5) * 15,
+                (Math.random() - 0.5) * 15
+            );
+
+            microbe.userData.velocity = {
+                x: (Math.random() - 0.5) * 0.02,
+                y: (Math.random() - 0.5) * 0.02,
+                z: (Math.random() - 0.5) * 0.02
+            };
+
+            microbeGroup.add(microbe);
+        }
+
+        scene.add(microbeGroup);
+
+        function animateMicrobes() {
+            requestAnimationFrame(animateMicrobes);
+            microbeGroup.children.forEach(microbe => {
+                microbe.position.x += microbe.userData.velocity.x;
+                microbe.position.y += microbe.userData.velocity.y;
+                microbe.position.z += microbe.userData.velocity.z;
+            });
+        }
+        animateMicrobes();
+    }
     const AQI_API_KEY = "32588a0ff6002531fb2ccb32f7223fabde458d9e";
 
     async function fetchAQI(lat, lon) {
