@@ -2,93 +2,129 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WebAR AQI Simulation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAR Face Aging</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-tfjs-converter"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
     <style>
         body { margin: 0; overflow: hidden; text-align: center; background-color: black; }
-        #video {
+        canvas, video { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; display: block; }
+        #slider-container { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; color: white; }
+        .corner-markings {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            z-index: 1; /* Ensure video is above canvas */
+            width: 100px;
+            height: 100px;
+            border: 4px solid red;
         }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 2; /* Ensure Three.js elements are above */
-            pointer-events: none; /* Allow interactions */
-        }
-        #slider-container {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 3; /* Keep UI elements visible */
-            color: white;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 5px;
-            border-radius: 5px;
-        }
+        .top-left { top: 10%; left: 30%; border-right: none; border-bottom: none; }
+        .top-right { top: 10%; right: 30%; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: 10%; left: 30%; border-right: none; border-top: none; }
+        .bottom-right { bottom: 10%; right: 30%; border-left: none; border-top: none; }
     </style>
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
     <div id="slider-container">
         <label for="aqiSlider">AQI Level:</label>
-        <input type="range" id="aqiSlider" min="0" max="500" value="100" disabled>
-        <span id="aqiValue">Loading...</span>
+        <input type="range" id="aqiSlider" min="0" max="500" value="100">
+        <span id="aqiValue">100</span>
     </div>
+    <video id="video" autoplay playsinline></video>
+    <div class="corner-markings top-left"></div>
+    <div class="corner-markings top-right"></div>
+    <div class="corner-markings bottom-left"></div>
+    <div class="corner-markings bottom-right"></div>
     <script>
-    function updateMicrobes(aqi) {
-        let microbeCount = Math.floor(aqi * 1.5); // Increased microbes
-        let microbeGroup = new THREE.Group();
+        let scene, camera, renderer, videoTexture;
+        let faceMeshModel;
+        let particleSystem;
 
-        for (let i = 0; i < microbeCount; i++) {
-            let microbeGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-            let microbeMaterial = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
-            let microbe = new THREE.Mesh(microbeGeometry, microbeMaterial);
-
-            microbe.position.set(
-                (Math.random() - 0.5) * 15,
-                (Math.random() - 0.5) * 15,
-                (Math.random() - 0.5) * 15
-            );
-
-            microbe.userData.velocity = {
-                x: (Math.random() - 0.5) * 0.02,
-                y: (Math.random() - 0.5) * 0.02,
-                z: (Math.random() - 0.5) * 0.02
-            };
-
-            microbeGroup.add(microbe);
+        function initScene() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 1;
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            scene.fog = new THREE.FogExp2(0x888888, 0.02);
+            initVideoTexture();
+            initParticles();
         }
 
-        scene.add(microbeGroup);
-
-        function animateMicrobes() {
-            requestAnimationFrame(animateMicrobes);
-            microbeGroup.children.forEach(microbe => {
-                microbe.position.x += microbe.userData.velocity.x;
-                microbe.position.y += microbe.userData.velocity.y;
-                microbe.position.z += microbe.userData.velocity.z;
+        function initVideoTexture() {
+            const video = document.getElementById('video');
+            navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+                video.srcObject = stream;
+                video.play();
+                videoTexture = new THREE.VideoTexture(video);
+                const videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
+                const videoGeometry = new THREE.PlaneGeometry(2, 2);
+                const videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
+                scene.add(videoMesh);
             });
         }
-        animateMicrobes();
-    }
-</script>
 
+        function initParticles() {
+            const particleGeometry = new THREE.BufferGeometry();
+            const particlesCount = 2000;
+            const positions = new Float32Array(particlesCount * 3);
+            const sizes = new Float32Array(particlesCount);
 
+            for (let i = 0; i < particlesCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
+                sizes[i] = Math.random() * 0.3 + 0.1;
+            }
+
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const particleMaterial = new THREE.PointsMaterial({ 
+                color: 0xaaaaaa, // Light gray dust particles
+                size: 0.3, 
+                transparent: true, 
+                opacity: 0.6, // Increased opacity for better visibility
+                depthWrite: true, // Ensures depth is written for better layering
+                blending: THREE.NormalBlending,
+                map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/circle.png')
+            });
+
+            particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particleSystem);
+        }
+
+        function updateAgingEffect(aqi) {
+            let intensity = aqi / 500;
+            document.body.style.filter = contrast(${1 - intensity * 0.5}) grayscale(${intensity});
+            scene.fog.density = intensity * 0.05;
+            particleSystem.material.size = Math.max(0.2, 0.5 + intensity * 0.3);
+            particleSystem.material.opacity = 0.6 + intensity * 0.2; // Increased opacity
+        }
+
+        document.getElementById('aqiSlider').addEventListener('input', (event) => {
+            let aqiValue = event.target.value;
+            document.getElementById('aqiValue').innerText = aqiValue;
+            updateAgingEffect(aqiValue);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            let positions = particleSystem.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 1] += 0.02 * (Math.random() - 0.5); // Subtle floating effect
+                if (positions[i + 1] > 5) positions[i + 1] = -5;
+            }
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+            particleSystem.rotation.y += 0.002;
+            renderer.render(scene, camera);
+        }
+
+        initScene();
+        animate();
+    </script>
 </body>
 </html>
