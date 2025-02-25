@@ -29,7 +29,7 @@
 </head>
 <body>
     <div id="slider-container">
-        <label for="aqiSlider">AQI Level:</label>
+        <label for="aqiSlider" id="aqiLabel">AQI Level:</label>
         <input type="range" id="aqiSlider" min="0" max="500" value="100" disabled>
         <span id="aqiValue">100</span>
     </div>
@@ -52,10 +52,22 @@
                         let aqi = data.data.aqi;
                         document.getElementById('aqiSlider').value = aqi;
                         document.getElementById('aqiValue').innerText = aqi;
+                        updateAQIColor(aqi);
                         updateParticles(aqi);
                     }
                 });
             }
+        }
+
+        function updateAQIColor(aqi) {
+            let color;
+            if (aqi <= 50) color = 'green';
+            else if (aqi <= 100) color = 'yellow';
+            else if (aqi <= 150) color = 'orange';
+            else if (aqi <= 200) color = 'red';
+            else if (aqi <= 300) color = 'purple';
+            else color = 'maroon';
+            document.getElementById('aqiLabel').style.color = color;
         }
 
         async function initFaceMesh() {
@@ -85,56 +97,11 @@
             document.getElementById('bottomRight').style.transform = `translate(${xMax - 10}px, ${yMax - 10}px)`;
         }
 
-        function initScene() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 1;
-            renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-            createParticles();
-            animate();
-        }
-
-        function createParticles() {
-            const particleMaterial = new THREE.MeshBasicMaterial({ color: 0x8B5A2B, transparent: true, opacity: 0.4 });
-            for (let i = 0; i < 500; i++) {
-                let size = Math.random() * 0.03;
-                let particle = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), particleMaterial);
-                particle.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, Math.random() * -2);
-                scene.add(particle);
-                particles.push(particle);
-            }
-            fetchAQI();
-        }
-
-        function updateParticles(aqi) {
-            let density = Math.min(500, (aqi / 500) * 500);
-            particles.forEach((particle, index) => {
-                particle.visible = index < density;
-            });
-        }
-
-        function animateParticles() {
-            particles.forEach(particle => {
-                particle.position.y -= 0.002;
-                if (particle.position.y < -1.5) {
-                    particle.position.y = 1.5;
-                }
-            });
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            animateParticles();
-            renderer.render(scene, camera);
-        }
-
         navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
             document.getElementById('video').srcObject = stream;
         });
 
-        initScene();
+        fetchAQI();
         initFaceMesh();
     </script>
 </body>
