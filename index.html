@@ -29,7 +29,7 @@
 <body>
     <div id="slider-container">
         <label for="aqiSlider">AQI Level:</label>
-        <input type="range" id="aqiSlider" min="0" max="500" value="100">
+        <input type="range" id="aqiSlider" min="0" max="500" value="100" disabled>
         <span id="aqiValue">100</span>
     </div>
     <video id="video" autoplay playsinline></video>
@@ -45,11 +45,12 @@
                 navigator.geolocation.getCurrentPosition(async position => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-                    const response = await fetch(https://api.waqi.info/feed/geo:${lat};${lon}/?token=32588a0ff6002531fb2ccb32f7223fabde458d9e);
+                    const response = await fetch(https://api.waqi.info/feed/geo:${lat};${lon}/?token=YOUR_API_TOKEN);
                     const data = await response.json();
                     if (data.status === "ok") {
-                        document.getElementById('aqiSlider').value = data.data.aqi;
-                        document.getElementById('aqiValue').innerText = data.data.aqi;
+                        let aqi = data.data.aqi;
+                        document.getElementById('aqiSlider').value = aqi;
+                        document.getElementById('aqiValue').innerText = aqi;
                         updateParticles();
                     }
                 });
